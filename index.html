@@ -453,35 +453,61 @@ if (state.policy.type === 'floor') {
       const x = xScale(Qstar), y = yScale(Pstar);
       eqDot.setAttribute('cx', x); eqDot.setAttribute('cy', y); eqDot.setAttribute('opacity', .95);
 
-      // Surpluses at equilibrium only when no binding controls
-      let csPoly = [], psPoly = [], dwlPoly = [];
-      let cs=0, ps=0;
-      if(state.policy.type==='none' || state.policy.type==='tax' || state.policy.type==='subsidy'){
-        const {csArea, psArea, Pchoke, Pstart} = computeSurplus(A,B,C,D,Pstar,Qstar);
-        cs = Math.max(0, csArea); ps = Math.max(0, psArea);
-        // polygons for fills
-        csPoly = [ [xScale(0), yScale(Pstar)], [xScale(Qstar), yScale(Pstar)], [xScale(0), yScale(Pchoke)] ];
-        psPoly = [ [xScale(0), yScale(Pstart)], [xScale(Qstar), yScale(Pstar)], [xScale(0), yScale(Pstar)] ];
-        if(state.policy.type==='tax' || state.policy.type==='subsidy'){
-          // Deadweight loss relative to original equilibrium using unadjusted vs adjusted lines
-          const base = equilibrium();
-          const baseW = 0.5 * (inverseDemandP(0) - base.P) * base.Q + 0.5 * (base.P - inverseSupplyP(0)) * base.Q;
-          const newW = cs + ps; // ignoring tax revenue or subsidy outlay for triangle comparison
-          DWL = Math.max(0, baseW - newW);
-          // approximate DWL polygon as triangle between quantities
-          const Q1 = base.Q, P1 = base.P; const Q2 = Qstar, P2 = Pstar;
-          const midQ = (Q1+Q2)/2; const Pd = inverseDemandP(midQ); const Ps = inverseSupplyP(midQ);
-          dwlPoly = [ [xScale(Q1), yScale(P1)], [xScale(Q2), yScale(P2)], [xScale(midQ), yScale((Pd+Ps)/2)] ];
-        }
-      }
-      if(state.policy.type==='ceiling' || state.policy.type==='floor'){
-        // DWL for binding control as triangle between Q at control and Q at competitive equilibrium
-        const base = equilibrium();
-        const Qc = Qstar; const Qe = base.Q; const midQ = (Qc+Qe)/2;
-        const Pd = inverseDemandP(midQ); const Ps = inverseSupplyP(midQ);
-        dwlPoly = [ [xScale(Qc), yScale(inverseDemandP(Qc))], [xScale(Qc), yScale(inverseSupplyP(Qc))], [xScale(Qe), yScale(base.P)] ];
-        DWL = Math.abs(0.5 * (Pd - Ps) * Math.abs(Qe - Qc));
-      }
+      // Surpluses for the current {P*, Q*} regardless of policy type
+let csPoly = [], psPoly = [], dwlPoly = [];
+let cs = 0, ps = 0;
+
+{
+  const { csArea, psArea, Pchoke, Pstart } = computeSurplus(A, B, C, D, Pstar, Qstar);
+  cs = Math.max(0, csArea);
+  ps = Math.max(0, psArea);
+  csPoly = [
+    [xScale(0), yScale(Pstar)],
+    [xScale(Qstar), yScale(Pstar)],
+    [xScale(0), yScale(Pchoke)]
+  ];
+  psPoly = [
+    [xScale(0), yScale(Pstart)],
+    [xScale(Qstar), yScale(Pstar)],
+    [xScale(0), yScale(Pstar)]
+  ];
+}
+
+// Deadweight loss
+if (state.policy.type === 'tax' || state.policy.type === 'subsidy') {
+  // Compare to competitive baseline without the tax/subsidy
+  const baseEq = equilibrium();
+  const baseW = 0.5 * (inverseDemandP(0) - baseEq.P) * baseEq.Q
+              + 0.5 * (baseEq.P - inverseSupplyP(0)) * baseEq.Q;
+  const newW = cs + ps; // tax revenue/subsidy outlay excluded in DWL
+  DWL = Math.max(0, baseW - newW);
+
+  // approximate DWL polygon
+  const Q1 = baseEq.Q, P1 = baseEq.P;
+  const Q2 = Qstar,   P2 = Pstar;
+  const midQ = (Q1 + Q2) / 2;
+  const Pd = inverseDemandP(midQ), Ps = inverseSupplyP(midQ);
+  dwlPoly = [
+    [xScale(Q1),  yScale(P1)],
+    [xScale(Q2),  yScale(P2)],
+    [xScale(midQ), yScale((Pd + Ps) / 2)]
+  ];
+} else if ((state.policy.type === 'ceiling' || state.policy.type === 'floor') && controlIsBinding) {
+  // DWL for binding price control relative to competitive baseline
+  const baseEq = equilibrium();
+  const Qc = Qstar, Qe = baseEq.Q, midQ = (Qc + Qe) / 2;
+  const Pd = inverseDemandP(midQ), Ps = inverseSupplyP(midQ);
+  dwlPoly = [
+    [xScale(Qc), yScale(inverseDemandP(Qc))],
+    [xScale(Qc), yScale(inverseSupplyP(Qc))],
+    [xScale(Qe), yScale(baseEq.P)]
+  ];
+  DWL = Math.abs(0.5 * (Pd - Ps) * Math.abs(Qe - Qc));
+} else {
+  // Non-binding control: no DWL, polygons remain as base
+  DWL = 0;
+  dwlPoly = [];
+}
 
       csFill.setAttribute('d', csPoly.length? polygon(csPoly):''); csFill.setAttribute('opacity', csPoly.length?1:0);
       psFill.setAttribute('d', psPoly.length? polygon(psPoly):''); psFill.setAttribute('opacity', psPoly.length?1:0);
