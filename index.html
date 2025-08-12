@@ -411,25 +411,44 @@
       const denom = (B + D);
       let Pstar = denom===0?0:(A + C)/denom; let Qstar = Math.max(0, A - B*Pstar);
 
-      // Price controls override traded quantity and create shortage or surplus
-      let shortage = null, surplus = null, DWL = 0, policyNote='';
-      if(state.policy.type==='ceiling'){
-        const Pc = +($('#pctrl')?.value||0);
-        const Qd = Math.max(0, state.A - state.B*Pc);
-        const Qs = Math.max(0, -state.C + state.D*Pc);
-        Pstar = Pc; Qstar = Math.min(Qd, Qs);
-        if(Qd>Qs){ shortage = Qd - Qs; }
-        policyNote = 'Binding if Pc < P*';
-      }
-      if(state.policy.type==='floor'){
-        const Pf = +($('#pctrl')?.value||0);
-        const Qd = Math.max(0, state.A - state.B*Pf);
-        const Qs = Math.max(0, -state.C + state.D*Pf);
-        Pstar = Pf; Qstar = Math.min(Qd, Qs);
-        if(Qs>Qd){ surplus = Qs - Qd; }
-        policyNote = 'Binding if Pf > P*';
-      }
+      // Price controls: only override if binding
+let shortage = null, surplus = null, DWL = 0, policyNote = '';
+const base = { P: Pstar, Q: Qstar }; // from the competitive equilibrium above
+let controlIsBinding = false;
 
+if (state.policy.type === 'ceiling') {
+  const Pc = +($('#pctrl')?.value || 0);
+  if (Pc < base.P) {
+    controlIsBinding = true;
+    const Qd = Math.max(0, A - B * Pc);
+    const Qs = Math.max(0, -C + D * Pc);
+    Pstar = Pc;
+    Qstar = Math.min(Qd, Qs);
+    if (Qd > Qs) shortage = Qd - Qs;
+    policyNote = 'Binding ceiling: Pc < P*';
+  } else {
+    // Non-binding: keep competitive {P*, Q*}
+    policyNote = 'Non-binding ceiling: Pc ≥ P*';
+  }
+}
+
+if (state.policy.type === 'floor') {
+  const Pf = +($('#pctrl')?.value || 0);
+  if (Pf > base.P) {
+    controlIsBinding = true;
+    const Qd = Math.max(0, A - B * Pf);
+    const Qs = Math.max(0, -C + D * Pf);
+    Pstar = Pf;
+    Qstar = Math.min(Qd, Qs);
+    if (Qs > Qd) surplus = Qs - Qd;
+    policyNote = 'Binding floor: Pf > P*';
+  } else {
+    // Non-binding: keep competitive {P*, Q*}
+    policyNote = 'Non-binding floor: Pf ≤ P*';
+  }
+}
+
+                  
       // Equilibrium marker
       const x = xScale(Qstar), y = yScale(Pstar);
       eqDot.setAttribute('cx', x); eqDot.setAttribute('cy', y); eqDot.setAttribute('opacity', .95);
