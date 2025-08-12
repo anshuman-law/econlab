@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Supply & Demand Lab</title>
+  <style>
+    :root{
+      --bg:#0b0f14; /* deep blue-gray */
+      --panel:#111820;
+      --card:#0f1720;
+      --ink:#e6eef6;
+      --muted:#9bb0c6;
+      --accent:#6ee7ff; /* cyan */
+      --accent2:#a78bfa; /* violet */
+      --good:#86efac; /* green */
+      --bad:#fca5a5; /* red */
+      --warn:#fde68a; /* amber */
+      --shadow:0 6px 30px rgba(0,0,0,.35);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 700px at 80% -10%, #102034 10%, transparent 70%), var(--bg);
+      color:var(--ink);
+      -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    }
+    header{
+      position:sticky; top:0; z-index:20; backdrop-filter:saturate(1.2) blur(10px);
+      background:linear-gradient(0deg, rgba(10,14,20,.6), rgba(10,14,20,.8));
+      border-bottom:1px solid rgba(255,255,255,.06);
+    }
+    .wrap{max-width:1200px; margin:0 auto; padding:14px 16px}
+    .brand{display:flex; align-items:center; gap:12px}
+    .logo{
+      width:36px; height:36px; border-radius:10px; background:
+        conic-gradient(from 200deg, var(--accent), var(--accent2));
+      box-shadow:0 2px 10px rgba(110,231,255,.35);
+    }
+    h1{font-size:20px; margin:0}
+
+    .app{
+      display:grid; grid-template-columns: 1fr; gap:14px; padding:16px;
+    }
+    @media(min-width:900px){
+      .app{grid-template-columns: 360px 1fr}
+    }
+
+    .panel{background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)); border:1px solid rgba(255,255,255,.07); border-radius:var(--radius); box-shadow:var(--shadow)}
+    .panel h2{font-size:16px; font-weight:700; letter-spacing:.2px; margin:0 0 8px}
+    .panel .pad{padding:16px}
+
+    .controls{display:grid; gap:10px}
+    .group{background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.00)); border:1px solid rgba(255,255,255,.06); border-radius:14px; padding:12px}
+    .group h3{font-size:13px; color:var(--muted); margin:0 0 10px}
+    .row{display:grid; grid-template-columns: 1fr 88px; align-items:center; gap:10px; margin:8px 0}
+    .row label{font-size:13px; color:var(--muted)}
+    input[type="range"]{width:100%}
+    input[type="number"], select{width:100%; background:#0d1520; color:var(--ink); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:8px 10px; font-size:14px}
+    .pillbar{display:flex; gap:8px; flex-wrap:wrap}
+    .pill{padding:8px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.08); color:var(--muted); cursor:pointer; user-select:none}
+    .pill.active{border-color:rgba(255,255,255,.25); color:var(--ink); background:rgba(167,139,250,.08)}
+
+    .canvasCard{position:relative; overflow:hidden}
+    .canvasToolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:8px}
+    .tag{font-size:12px; color:var(--muted)}
+    .legend{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .key{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted)}
+    .dot{width:10px; height:10px; border-radius:3px}
+
+    .readout{display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:8px; margin-top:10px}
+    @media(min-width:600px){ .readout{grid-template-columns: repeat(4, minmax(0,1fr))} }
+    .stat{background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:12px; padding:10px}
+    .stat .k{font-size:11px; color:var(--muted)}
+    .stat .v{font-size:16px; font-weight:700}
+
+    .footnote{color:var(--muted); font-size:12px; margin-top:8px}
+    .btn{background:linear-gradient(180deg, rgba(110,231,255,.25), rgba(110,231,255,.1)); border:1px solid rgba(110,231,255,.35); color:var(--ink); padding:8px 12px; border-radius:12px; cursor:pointer}
+    .btn.alt{background:linear-gradient(180deg, rgba(167,139,250,.25), rgba(167,139,250,.1)); border-color:rgba(167,139,250,.35)}
+    .btn.ghost{background:transparent; border:1px dashed rgba(255,255,255,.2)}
+    .btn:active{transform:translateY(1px)}
+
+    .tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+
+    .credits{color:var(--muted); font-size:12px; text-align:center; padding:14px}
+    a{color:var(--accent)}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="brand"><div class="logo" aria-hidden="true"></div><h1>Econ Learning Lab</h1></div>
+    </div>
+  </header>
+
+  <main class="wrap app" aria-live="polite">
+    <!-- LEFT: Controls -->
+    <section class="panel">
+      <div class="pad">
+        <h2>Market Settings</h2>
+        <div class="group">
+          <h3>Axes and scaling</h3>
+          <div class="row"><label for="pmax">Max price</label><input id="pmax" type="range" min="10" max="200" step="5" value="100" /><input id="pmaxBox" type="number" min="10" max="200" step="5" value="100"/></div>
+          <div class="row"><label for="qmax">Max quantity</label><input id="qmax" type="range" min="50" max="1000" step="10" value="500" /><input id="qmaxBox" type="number" min="50" max="1000" step="10" value="500"/></div>
+        </div>
+
+        <div class="group">
+          <h3>Demand: Qd = A − B·P</h3>
+          <div class="row"><label for="A">Intercept A at P=0</label><input id="A" type="range" min="0" max="1000" step="5" value="400" /><input id="ABox" type="number" min="0" max="1000" step="5" value="400"/></div>
+          <div class="row"><label for="B">Slope B per price</label><input id="B" type="range" min="0.1" max="5" step="0.1" value="1.2" /><input id="BBox" type="number" min="0.1" max="5" step="0.1" value="1.2"/></div>
+        </div>
+
+        <div class="group">
+          <h3>Supply: Qs = −C + D·P</h3>
+          <div class="row"><label for="C">Intercept C</label><input id="C" type="range" min="-200" max="400" step="5" value="50" /><input id="CBox" type="number" min="-200" max="400" step="5" value="50"/></div>
+          <div class="row"><label for="D">Slope D per price</label><input id="D" type="range" min="0.1" max="5" step="0.1" value="1.0" /><input id="DBox" type="number" min="0.1" max="5" step="0.1" value="1.0"/></div>
+        </div>
+
+        <div class="group">
+          <h3>Policy experiment</h3>
+          <div class="tabs" role="tablist" aria-label="Policy tabs">
+            <button class="pill active" role="tab" aria-selected="true" data-tab="none">None</button>
+            <button class="pill" role="tab" aria-selected="false" data-tab="tax">Per-unit tax</button>
+            <button class="pill" role="tab" aria-selected="false" data-tab="subsidy">Per-unit subsidy</button>
+            <button class="pill" role="tab" aria-selected="false" data-tab="ceiling">Price ceiling</button>
+            <button class="pill" role="tab" aria-selected="false" data-tab="floor">Price floor</button>
+          </div>
+          <div id="policyFields">
+            <!-- dynamic inputs injected here -->
+          </div>
+        </div>
+
+        <div class="pillbar" style="margin-top:6px">
+          <button class="btn" id="reset">Reset</button>
+          <button class="btn alt" id="randomize">Randomize</button>
+          <button class="btn ghost" id="share">Share state</button>
+        </div>
+        <p class="footnote">Tip: rotate your phone to landscape for a wider chart. Drag the vertical guide on the chart to inspect elasticities away from equilibrium.</p>
+      </div>
+    </section>
+
+    <!-- RIGHT: Chart and readouts -->
+    <section class="panel canvasCard">
+      <div class="pad">
+        <div class="canvasToolbar">
+          <div class="legend">
+            <span class="key"><span class="dot" style="background:var(--accent)"></span>Demand</span>
+            <span class="key"><span class="dot" style="background:var(--accent2)"></span>Supply</span>
+            <span class="key"><span class="dot" style="background:var(--good)"></span>Surpluses</span>
+            <span class="key"><span class="dot" style="background:var(--bad)"></span>DWL</span>
+          </div>
+          <div class="tag" id="modeTag">Equilibrium view</div>
+        </div>
+        <svg id="chart" viewBox="0 0 800 520" width="100%" height="auto" role="img" aria-label="Supply and demand graph">
+          <defs>
+            <linearGradient id="surplusG" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--good)" stop-opacity=".45"/>
+              <stop offset="100%" stop-color="var(--good)" stop-opacity=".1"/>
+            </linearGradient>
+            <linearGradient id="dwlG" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--bad)" stop-opacity=".5"/>
+              <stop offset="100%" stop-color="var(--bad)" stop-opacity=".2"/>
+            </linearGradient>
+          </defs>
+          <!-- axes -->
+          <g id="axes"></g>
+          <!-- shaded areas -->
+          <path id="csFill" fill="url(#surplusG)" opacity="0"></path>
+          <path id="psFill" fill="url(#surplusG)" opacity="0"></path>
+          <path id="dwlFill" fill="url(#dwlG)" opacity="0"></path>
+          <!-- lines -->
+          <path id="dLine" stroke="var(--accent)" stroke-width="3" fill="none"></path>
+          <path id="sLine" stroke="var(--accent2)" stroke-width="3" fill="none"></path>
+          <!-- guides -->
+          <g id="guides"></g>
+          <circle id="eqDot" r="5" fill="#fff" stroke="#000" stroke-width="1" opacity="0"></circle>
+          <g id="inspectGuide" opacity=".0" cursor="ew-resize">
+            <line id="inspectLine" x1="0" x2="0" y1="20" y2="500" stroke="rgba(255,255,255,.4)" stroke-dasharray="4 4" stroke-width="2"/>
+            <circle id="inspectHandle" r="10" cy="20" stroke="#fff" stroke-width="2" fill="transparent"></circle>
+          </g>
+        </svg>
+        <div class="readout" id="readout"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="credits">Made for quick learning on mobile and desktop. Math uses linear forms so students can connect sliders to algebra. No external libraries.</footer>
+
+  <script>
+    // Utility: state and helpers
+    const $ = s => document.querySelector(s);
+    const $$ = s => Array.from(document.querySelectorAll(s));
+    const state = {
+      pmax: 100, qmax: 500,
+      A: 400, B: 1.2, // demand Q = A - B P
+      C: 50, D: 1.0,  // supply Q = -C + D P
+      policy: { type:"none" }
+    };
+
+    // Link range and number inputs
+    function link(id){
+      const r = $("#"+id), n = $("#"+id+"Box");
+      const sync = v => { r.value = v; n.value = v; onChange(); };
+      r.addEventListener('input', e=> sync(e.target.value));
+      n.addEventListener('input', e=> sync(e.target.value));
+    }
+
+    ['pmax','qmax','A','B','C','D'].forEach(link);
+
+    // Policy tabs
+    const policyContainer = $('#policyFields');
+    $$('.pill[role="tab"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        $$('.pill[role="tab"]').forEach(b=>{ b.classList.toggle('active', b===btn); b.setAttribute('aria-selected', b===btn) });
+        const type = btn.dataset.tab; state.policy.type = type;
+        renderPolicyFields(); onChange();
+      })
+    })
+
+    function renderPolicyFields(){
+      const t = state.policy.type;
+      policyContainer.innerHTML = '';
+      if(t==='tax' || t==='subsidy'){
+        policyContainer.innerHTML = `
+          <div class="row"><label for="tau">${t==='tax'?'Tax':'Subsidy'} per unit</label>
+            <input id="tau" type="range" min="0" max="50" step="1" value="10" />
+            <input id="tauBox" type="number" min="0" max="50" step="1" value="10" />
+          </div>
+          <div class="row"><label for="incidence">Collected from</label>
+            <select id="incidence"><option value="s">Sellers</option><option value="b">Buyers</option></select>
+          </div>`;
+        link('tau');
+        ['incidence'].forEach(id=> $("#"+id).addEventListener('input', onChange));
+      }
+      if(t==='ceiling' || t==='floor'){
+        policyContainer.innerHTML = `
+          <div class="row"><label for="pctrl">${t==='ceiling'?'Ceiling price':'Floor price'}</label>
+            <input id="pctrl" type="range" min="0" max="200" step="1" value="40" />
+            <input id="pctrlBox" type="number" min="0" max="200" step="1" value="40" />
+          </div>`;
+        link('pctrl');
+      }
+      $('#modeTag').textContent = t==='none' ? 'Equilibrium view' : t.charAt(0).toUpperCase()+t.slice(1)+' experiment';
+    }
+
+    // Buttons
+    $('#reset').addEventListener('click', ()=>{
+      Object.assign(state,{pmax:100,qmax:500,A:400,B:1.2,C:50,D:1.0, policy:{type:'none'}});
+      ['pmax','qmax','A','B','C','D'].forEach(id=>{
+        $('#'+id).value = state[id]; $('#'+id+'Box').value = state[id];
+      });
+      $$('.pill[role="tab"]').forEach(b=>{ const active=b.dataset.tab==='none'; b.classList.toggle('active',active); b.setAttribute('aria-selected',active) });
+      renderPolicyFields(); onChange();
+    });
+    $('#randomize').addEventListener('click', ()=>{
+      const rnd=(a,b,s=1)=> Math.round((a+Math.random()*(b-a))/s)*s;
+      state.A = rnd(200,700,5); state.B = +(Math.random()*1.8+0.5).toFixed(1);
+      state.C = rnd(-50,150,5); state.D = +(Math.random()*1.8+0.5).toFixed(1);
+      ['A','B','C','D'].forEach(id=>{ $('#'+id).value = state[id]; $('#'+id+'Box').value = state[id]; });
+      onChange();
+    });
+    $('#share').addEventListener('click', ()=>{
+      const qp = new URLSearchParams(stateToQuery(state));
+      navigator.clipboard.writeText(location.origin+location.pathname+"?"+qp.toString()).then(()=>{
+        alert('Link copied. Share this URL to load the same setup.');
+      })
+    });
+
+    // URL state
+    function stateToQuery(s){
+      const out = {p:s.pmax, q:s.qmax, A:s.A, B:s.B, C:s.C, D:s.D, t:s.policy.type};
+      if(s.policy.type==='tax' || s.policy.type==='subsidy'){ out.tau=$('#tau')?.value||10; out.w=$('#incidence')?.value||'s'; }
+      if(s.policy.type==='ceiling' || s.policy.type==='floor'){ out.pc=$('#pctrl')?.value||40; }
+      return out;
+    }
+    function parseQuery(){
+      const p = new URLSearchParams(location.search);
+      const get=(k,def,cast=v=>+v)=> p.has(k)?cast(p.get(k)):def;
+      state.pmax = get('p',100); state.qmax=get('q',500);
+      state.A = get('A',400); state.B=get('B',1.2);
+      state.C = get('C',50); state.D=get('D',1.0);
+      ['pmax','qmax','A','B','C','D'].forEach(id=>{ $('#'+id).value = state[id]; $('#'+id+'Box').value = state[id]; });
+      const t = p.get('t')||'none'; state.policy.type=t; $$('.pill[role="tab"]').forEach(b=>{ const active=b.dataset.tab===t; b.classList.toggle('active',active); b.setAttribute('aria-selected',active)});
+      renderPolicyFields();
+      if(t==='tax' || t==='subsidy'){ if(p.has('tau')) { $('#tau').value=p.get('tau'); $('#tauBox').value=p.get('tau'); } if(p.has('w')) $('#incidence').value=p.get('w'); }
+      if(t==='ceiling' || t==='floor'){ if(p.has('pc')) { $('#pctrl').value=p.get('pc'); $('#pctrlBox').value=p.get('pc'); } }
+    }
+
+    // Chart dimensions and transforms
+    const svg = $('#chart');
+    const axesG = $('#axes');
+    const guidesG = $('#guides');
+    const dLine = $('#dLine');
+    const sLine = $('#sLine');
+    const csFill = $('#csFill');
+    const psFill = $('#psFill');
+    const dwlFill = $('#dwlFill');
+    const eqDot = $('#eqDot');
+    const inspectGuide = $('#inspectGuide');
+    const inspectLine = $('#inspectLine');
+    const inspectHandle = $('#inspectHandle');
+
+    const chart = { left:70, right:20, top:20, bottom:40, width:800, height:520 };
+    function xScale(q){ return chart.left + (q/state.qmax) * (chart.width - chart.left - chart.right); }
+    function yScale(p){ const h = chart.height - chart.top - chart.bottom; return chart.top + h - (p/state.pmax)*h; }
+
+    function drawAxes(){
+      axesG.innerHTML=''; guidesG.innerHTML='';
+      const {left, top, bottom, right, width, height} = chart;
+      const ax = document.createElementNS('http://www.w3.org/2000/svg','g');
+      // Axes lines
+      const xAxis = line(left, height-bottom, width-right, height-bottom, '#8aa0b6');
+      const yAxis = line(left, top, left, height-bottom, '#8aa0b6');
+      ax.appendChild(xAxis); ax.appendChild(yAxis);
+      // Ticks
+      const xticks = 5, yticks=5;
+      for(let i=0;i<=xticks;i++){
+        const q = i*state.qmax/xticks; const x=xScale(q);
+        ax.appendChild(line(x, height-bottom, x, height-bottom+6, 'rgba(255,255,255,.5)'));
+        ax.appendChild(text(x, height-bottom+22, format(q), 'middle'));
+      }
+      for(let i=0;i<=yticks;i++){
+        const p = i*state.pmax/yticks; const y=yScale(p);
+        ax.appendChild(line(left-6, y, left, y, 'rgba(255,255,255,.5)'));
+        ax.appendChild(text(left-10, y+4, format(p), 'end'));
+      }
+      ax.appendChild(text((left+width-right)/2, height-8, 'Quantity Q', 'middle'));
+      ax.appendChild(text(18, (top+height-bottom)/2, 'Price P', 'middle', -90));
+      axesG.appendChild(ax);
+    }
+
+    function line(x1,y1,x2,y2,stroke){ const el = document.createElementNS('http://www.w3.org/2000/svg','line'); el.setAttribute('x1',x1); el.setAttribute('y1',y1); el.setAttribute('x2',x2); el.setAttribute('y2',y2); el.setAttribute('stroke',stroke); el.setAttribute('stroke-width',1); return el; }
+    function text(x,y,txt,anchor='start',rotate=0){ const t = document.createElementNS('http://www.w3.org/2000/svg','text'); t.setAttribute('x',x); t.setAttribute('y',y); t.setAttribute('fill','#c9d7e6'); t.setAttribute('font-size','12'); t.setAttribute('text-anchor',anchor); if(rotate) { t.setAttribute('transform',`rotate(${rotate} ${x} ${y})`);} t.textContent=txt; return t; }
+
+    function format(v){ return Math.round(v*10)/10; }
+
+    // Economics core
+    function demandQ(P){ return Math.max(0, state.A - state.B*P); }
+    function supplyQ(P){ return Math.max(0, -state.C + state.D*P); }
+    function inverseDemandP(Q){ return (state.A - Q)/state.B; }
+    function inverseSupplyP(Q){ return (state.C + Q)/state.D; }
+
+    function equilibrium(){
+      // Solve A - B P = -C + D P => P* = (A + C)/(B + D)
+      const denom = (state.B + state.D);
+      const P = denom===0 ? 0 : (state.A + state.C)/denom;
+      const Q = Math.max(0, state.A - state.B*P);
+      return {P,Q};
+    }
+
+    function applyPolicy(){
+      const pol = state.policy.type;
+      let A = state.A, B = state.B, C = state.C, D = state.D; let cap = null, floor = null;
+      if(pol==='tax' || pol==='subsidy'){
+        const tau = +($('#tau')?.value||0) * (pol==='tax'?1:-1); // tax positive, subsidy negative
+        const on = $('#incidence')?.value||'s';
+        if(on==='s'){ C = C + D*tau; }
+        else { A = A - B*tau; }
+        return {A,B,C,D, tau, on};
+      }
+      if(pol==='ceiling'){ cap = +($('#pctrl')?.value||0); return {A,B,C,D, cap}; }
+      if(pol==='floor'){ floor = +($('#pctrl')?.value||0); return {A,B,C,D, floor}; }
+      return {A,B,C,D};
+    }
+
+    function pathFromLine(fQfromP){
+      const pts=[]; const steps=60;
+      for(let i=0;i<=steps;i++){
+        const P = i*state.pmax/steps;
+        const Q = Math.min(state.qmax, Math.max(0, fQfromP(P)));
+        pts.push([xScale(Q), yScale(P)]);
+      }
+      return 'M '+pts.map(p=>p.join(',')).join(' L ');
+    }
+
+    function polygon(points){ return 'M '+points.map(p=>p.join(',')).join(' L ')+' Z'; }
+
+    function computeSurplus(A,B,C,D,Pstar,Qstar){
+      // Consumer surplus: triangle under demand above P* up to Q*
+      const Pchoke = inverseDemandP(0); // where Q=0
+      const csArea = 0.5 * (Pchoke - Pstar) * Qstar; // simple triangle
+      // Producer surplus: triangle above supply below P* up to Q*
+      const Pstart = inverseSupplyP(0); // supply at Q=0
+      const psArea = 0.5 * (Pstar - Pstart) * Qstar;
+      return {csArea, psArea, Pchoke, Pstart};
+    }
+
+    function elasticityAt(A,B,C,D,P,Q){
+      // For demand Q = A - B P => dQ/dP = -B, elasticity Ed = (dQ/dP)*(P/Q) = -B * P / Q
+      const Ed = Q>0 ? -B * P / Q : 0;
+      // For supply Q = -C + D P => dQ/dP = D, elasticity Es = D * P / Q
+      const Es = Q>0 ? D * P / Q : 0;
+      return {Ed, Es};
+    }
+
+    function updateChart(){
+      drawAxes();
+      const pol = applyPolicy();
+      // Draw demand and supply with policy-adjusted params where relevant for taxes/subsidies
+      const useAdjustedLines = state.policy.type==='tax' || state.policy.type==='subsidy';
+      const dQ = P => (useAdjustedLines ? Math.max(0, pol.A - pol.B*P) : demandQ(P));
+      const sQ = P => (useAdjustedLines ? Math.max(0, -pol.C + pol.D*P) : supplyQ(P));
+      dLine.setAttribute('d', pathFromLine(dQ));
+      sLine.setAttribute('d', pathFromLine(sQ));
+
+      // Baseline equilibrium or with policy
+      let A = state.A, B = state.B, C = state.C, D = state.D;
+      if(useAdjustedLines){ A = pol.A; B = pol.B; C = pol.C; D = pol.D; }
+      const denom = (B + D);
+      let Pstar = denom===0?0:(A + C)/denom; let Qstar = Math.max(0, A - B*Pstar);
+
+      // Price controls override traded quantity and create shortage or surplus
+      let shortage = null, surplus = null, DWL = 0, policyNote='';
+      if(state.policy.type==='ceiling'){
+        const Pc = +($('#pctrl')?.value||0);
+        const Qd = Math.max(0, state.A - state.B*Pc);
+        const Qs = Math.max(0, -state.C + state.D*Pc);
+        Pstar = Pc; Qstar = Math.min(Qd, Qs);
+        if(Qd>Qs){ shortage = Qd - Qs; }
+        policyNote = 'Binding if Pc < P*';
+      }
+      if(state.policy.type==='floor'){
+        const Pf = +($('#pctrl')?.value||0);
+        const Qd = Math.max(0, state.A - state.B*Pf);
+        const Qs = Math.max(0, -state.C + state.D*Pf);
+        Pstar = Pf; Qstar = Math.min(Qd, Qs);
+        if(Qs>Qd){ surplus = Qs - Qd; }
+        policyNote = 'Binding if Pf > P*';
+      }
+
+      // Equilibrium marker
+      const x = xScale(Qstar), y = yScale(Pstar);
+      eqDot.setAttribute('cx', x); eqDot.setAttribute('cy', y); eqDot.setAttribute('opacity', .95);
+
+      // Surpluses at equilibrium only when no binding controls
+      let csPoly = [], psPoly = [], dwlPoly = [];
+      let cs=0, ps=0;
+      if(state.policy.type==='none' || state.policy.type==='tax' || state.policy.type==='subsidy'){
+        const {csArea, psArea, Pchoke, Pstart} = computeSurplus(A,B,C,D,Pstar,Qstar);
+        cs = Math.max(0, csArea); ps = Math.max(0, psArea);
+        // polygons for fills
+        csPoly = [ [xScale(0), yScale(Pstar)], [xScale(Qstar), yScale(Pstar)], [xScale(0), yScale(Pchoke)] ];
+        psPoly = [ [xScale(0), yScale(Pstart)], [xScale(Qstar), yScale(Pstar)], [xScale(0), yScale(Pstar)] ];
+        if(state.policy.type==='tax' || state.policy.type==='subsidy'){
+          // Deadweight loss relative to original equilibrium using unadjusted vs adjusted lines
+          const base = equilibrium();
+          const baseW = 0.5 * (inverseDemandP(0) - base.P) * base.Q + 0.5 * (base.P - inverseSupplyP(0)) * base.Q;
+          const newW = cs + ps; // ignoring tax revenue or subsidy outlay for triangle comparison
+          DWL = Math.max(0, baseW - newW);
+          // approximate DWL polygon as triangle between quantities
+          const Q1 = base.Q, P1 = base.P; const Q2 = Qstar, P2 = Pstar;
+          const midQ = (Q1+Q2)/2; const Pd = inverseDemandP(midQ); const Ps = inverseSupplyP(midQ);
+          dwlPoly = [ [xScale(Q1), yScale(P1)], [xScale(Q2), yScale(P2)], [xScale(midQ), yScale((Pd+Ps)/2)] ];
+        }
+      }
+      if(state.policy.type==='ceiling' || state.policy.type==='floor'){
+        // DWL for binding control as triangle between Q at control and Q at competitive equilibrium
+        const base = equilibrium();
+        const Qc = Qstar; const Qe = base.Q; const midQ = (Qc+Qe)/2;
+        const Pd = inverseDemandP(midQ); const Ps = inverseSupplyP(midQ);
+        dwlPoly = [ [xScale(Qc), yScale(inverseDemandP(Qc))], [xScale(Qc), yScale(inverseSupplyP(Qc))], [xScale(Qe), yScale(base.P)] ];
+        DWL = Math.abs(0.5 * (Pd - Ps) * Math.abs(Qe - Qc));
+      }
+
+      csFill.setAttribute('d', csPoly.length? polygon(csPoly):''); csFill.setAttribute('opacity', csPoly.length?1:0);
+      psFill.setAttribute('d', psPoly.length? polygon(psPoly):''); psFill.setAttribute('opacity', psPoly.length?1:0);
+      dwlFill.setAttribute('d', dwlPoly.length? polygon(dwlPoly):''); dwlFill.setAttribute('opacity', dwlPoly.length?1:0);
+
+      // Inspection guide
+      const gx = xScale(Math.min(state.qmax, Math.max(0, inspectQ)));
+      inspectLine.setAttribute('x1', gx); inspectLine.setAttribute('x2', gx);
+      inspectHandle.setAttribute('cx', gx);
+      inspectGuide.setAttribute('opacity', .9);
+
+      // Compute inspection elasticities at guide Q
+      const Qi = Math.max(1e-6, Math.min(state.qmax, inspectQ));
+      const Pi_d = inverseDemandP(Qi); const Pi_s = inverseSupplyP(Qi);
+      const {Ed, Es} = elasticityAt(A,B,C,D, Pstar, Qstar);
+      const {Ed:Ed_i} = elasticityAt(A,B,C,D, Pi_d, Qi);
+      const {Es:Es_i} = elasticityAt(A,B,C,D, Pi_s, Qi);
+
+      // Readout
+      const readout = $('#readout');
+      readout.innerHTML = `
+        <div class="stat"><div class="k">Equilibrium P*</div><div class="v">${format(Pstar)}</div></div>
+        <div class="stat"><div class="k">Equilibrium Q*</div><div class="v">${format(Qstar)}</div></div>
+        <div class="stat"><div class="k">Demand elasticity Ed*</div><div class="v">${Qstar>0?format(Ed):'—'}</div></div>
+        <div class="stat"><div class="k">Supply elasticity Es*</div><div class="v">${Qstar>0?format(Es):'—'}</div></div>
+        <div class="stat"><div class="k">Consumer surplus</div><div class="v">${format(cs)}</div></div>
+        <div class="stat"><div class="k">Producer surplus</div><div class="v">${format(ps)}</div></div>
+        <div class="stat"><div class="k">Deadweight loss</div><div class="v">${format(DWL)}</div></div>
+        ${shortage?`<div class="stat"><div class="k">Shortage</div><div class="v">${format(shortage)}</div></div>`:''}
+        ${surplus?`<div class="stat"><div class="k">Surplus</div><div class="v">${format(surplus)}</div></div>`:''}
+        ${state.policy.type==='ceiling' || state.policy.type==='floor'?`<div class="stat"><div class="k">Note</div><div class="v" style="font-size:12px">${policyNote}</div></div>`:''}
+        <div class="stat"><div class="k">Guide Q</div><div class="v">${format(Qi)}</div></div>
+        <div class="stat"><div class="k">Ed at guide</div><div class="v">${format(Ed_i)}</div></div>
+        <div class="stat"><div class="k">Es at guide</div><div class="v">${format(Es_i)}</div></div>
+      `;
+    }
+
+    // Drag to inspect
+    let inspectQ = 0.6*state.qmax; // default position
+    function setInspectFromClientX(clientX){
+      const bbox = svg.getBoundingClientRect();
+      const x = clientX - bbox.left; // px
+      const q = (x - chart.left) / (chart.width - chart.left - chart.right) * state.qmax;
+      inspectQ = Math.max(0, Math.min(state.qmax, q));
+      updateChart();
+    }
+    svg.addEventListener('pointerdown', e=>{ svg.setPointerCapture(e.pointerId); setInspectFromClientX(e.clientX); });
+    svg.addEventListener('pointermove', e=>{ if(e.pressure>0) setInspectFromClientX(e.clientX); });
+
+    // Main onchange
+    function onChange(){
+      ['pmax','qmax','A','B','C','D'].forEach(id=> state[id] = +$('#'+id).value);
+      updateChart();
+      history.replaceState(null,'', '?'+ new URLSearchParams(stateToQuery(state)).toString());
+    }
+
+    // Init
+    parseQuery();
+    updateChart();
+  </script>
+</body>
+</html>
