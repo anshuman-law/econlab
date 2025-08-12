@@ -475,16 +475,29 @@ let cs = 0, ps = 0;
 
 // Deadweight loss
 if (state.policy.type === 'tax' || state.policy.type === 'subsidy') {
-  // Compare to competitive baseline without the tax/subsidy
+  // Competitive baseline
   const baseEq = equilibrium();
   const baseW = 0.5 * (inverseDemandP(0) - baseEq.P) * baseEq.Q
               + 0.5 * (baseEq.P - inverseSupplyP(0)) * baseEq.Q;
-  const newW = cs + ps; // tax revenue/subsidy outlay excluded in DWL
-  DWL = Math.max(0, baseW - newW);
 
-  // approximate DWL polygon
+  // Current welfare without transfers
+  const newW_noTransfer = cs + ps;
+
+  // Per-unit wedge size (always positive)
+  const tau = Math.abs( +($('#tau')?.value || 0) );
+
+  // Government transfer: +T for tax revenue, −S for subsidy outlay
+  const transfer = (state.policy.type === 'tax') ? (tau * Qstar) : (-tau * Qstar);
+
+  // True welfare after policy includes transfers that are not pure losses
+  const newW_true = newW_noTransfer + transfer;
+
+  // Deadweight loss is the loss of total surplus excluding pure transfers
+  DWL = Math.max(0, baseW - newW_true);
+
+  // DWL polygon: approximate triangle between baseline and current quantities
   const Q1 = baseEq.Q, P1 = baseEq.P;
-  const Q2 = Qstar,   P2 = Pstar;
+  const Q2 = Qstar,    P2 = Pstar;
   const midQ = (Q1 + Q2) / 2;
   const Pd = inverseDemandP(midQ), Ps = inverseSupplyP(midQ);
   dwlPoly = [
@@ -492,7 +505,8 @@ if (state.policy.type === 'tax' || state.policy.type === 'subsidy') {
     [xScale(Q2),  yScale(P2)],
     [xScale(midQ), yScale((Pd + Ps) / 2)]
   ];
-} else if ((state.policy.type === 'ceiling' || state.policy.type === 'floor') && controlIsBinding) {
+}
+else if ((state.policy.type === 'ceiling' || state.policy.type === 'floor') && controlIsBinding) {
   // DWL for binding price control relative to competitive baseline
   const baseEq = equilibrium();
   const Qc = Qstar, Qe = baseEq.Q, midQ = (Qc + Qe) / 2;
